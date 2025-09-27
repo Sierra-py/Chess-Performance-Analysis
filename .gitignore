@@ -1,0 +1,15 @@
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Personal data files
+*.csv
+personal_data/
+
+# Environment files
+.env
+venv/
