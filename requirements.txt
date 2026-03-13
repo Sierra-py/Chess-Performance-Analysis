@@ -3,4 +3,4 @@ numpy>=1.21.0
 matplotlib>=3.4.0
 requests>=2.25.0
 plotly
-streamlit
+streamlit>=1.43.0
