@@ -104,7 +104,7 @@ st.session_state.year = year
 st.session_state.month = month
 
 # Button to fetch Data by calling API
-button = st.button("Fetch data", type='primary', shortcut='Enter')
+button = st.button("Fetch data", type='primary')
 if button:
     if not username or not year or not month:
         st.write("Please fill all fields.")
