@@ -7,11 +7,18 @@ import streamlit as st
 # Function to call Chess.com's API and fetch data
 @st.cache_data
 def import_data(username, year, month):
+    months_dict = {
+    "January": "01", "February": "02", "March": "03",
+    "April": "04", "May": "05", "June": "06",
+    "July": "07", "August": "08", "September": "09",
+    "October": "10", "November": "11", "December": "12"
+}
+
 
     header = {
     'User-Agent' : 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:141.0) Gecko/20100101 Firefox/141.0'
     }
-    response = requests.get(f"https://api.chess.com/pub/player/{username}/games/{year}/{month}", headers= header)
+    response = requests.get(f"https://api.chess.com/pub/player/{username}/games/{year}/{months_dict[month]}", headers= header)
     if response.status_code == 200:
         return response
     elif response.status_code == 404:
@@ -159,41 +166,112 @@ def extract_games(games_list, username, game_type = ''):
     ]]
     return df
 
-def analysis_report(df, username):
+def analysis_report(df, game_type, username):
 
     Wins = df[df['My result:'] == 'Win']
     Loss = df[df['My result:'] == 'Loss']
     Draw = df[df['My result:'] == 'Draw']
 
-    st.write(f"=== Hello, {username} ===\n")
-    st.write(f"Number of games played in the month: {df['My Elo:'].count()}\n")
-    st.write(f"Your Average Elo of the month is: {df['My Elo:'].mean().__trunc__()}\n")
-    st.write(f"Your Max Elo of the month is: {df['My Elo:'].max()}\n")
-    st.write(f"Your Min Elo of the month is: {df['My Elo:'].min()}\n")
+    # Start of the Analysis 
+    st.title(f"Performance Analysis : {game_type} - {st.session_state.month} {st.session_state.year}", text_alignment='left')
 
+    #making three columns 
+    col1, col2 = st.columns([1,3])
 
-    idx = Wins["Opponent\'s Elo:"].idxmax()
-    st.write(f"Your Best Win was against user: {Wins['Opponent\'s username:'][idx]} with the Elo of :{Wins['Opponent\'s Elo:'][idx]}\n")
-    st.write(f"Rating change over this month: {df['My Elo:'].iloc[-1] - df['My Elo:'].iloc[0]}\n")
-
-    st.write(f"Your Win rate: {len(Wins)/len(df):.2%}\n")
-
-    color = df.groupby('My color:')['My result:'].apply(lambda x: (x == 'Win').mean())
-    st.write(f'Win Rate with different colors: ')
-    st.dataframe(color*100, width="content")
-
-    df["Opponent\'s Strength:"] = pd.cut(df['Elo Difference:'], 
-                                        bins=[-np.inf, -100, -20, 20, 100, np.inf], 
-                                        labels=['Much Weaker', 'Weaker', 'Similar', 'Stronger', 'Much Stronger'])
-    a = df.groupby("Opponent\'s Strength:", observed=True)['My result:'].apply(lambda x: (x =='Win').mean())
-
-
-    st.write(f"Win Rate according to the opponent\'s strength: ")
-    st.dataframe(a*100, width="content")
+    # metrics show in 1st column
+    with col1:
+        st.metric("Games Played", df['My Elo:'].count())
+        st.metric("Average Elo", int(df['My Elo:'].mean()))
+        st.metric("Max Elo", df['My Elo:'].max())
+        st.metric("Min Elo", df['My Elo:'].min())
+        st.metric(f"Rating change over this month:", int(df['My Elo:'].iloc[-1] - df['My Elo:'].iloc[0]))
+        st.metric(f"Your Win rate:", round(len(Wins)/len(df)*100,2))
 
 
 
+    with col2:
+        cola, colb, colc = st.columns([1,1,1])
+        with cola:
+            st.markdown("Performance by Opponent Strength")
+            
+            df["Opponent's Strength:"] = pd.cut(
+                df['Elo Difference:'], 
+                bins=[-np.inf, -100, -20, 20, 100, np.inf], 
+                labels=['Much Weaker', 'Weaker', 'Similar', 'Stronger', 'Much Stronger']
+            )
+            
+            strength_stats = df.groupby("Opponent's Strength:", observed=True).agg({
+                'My result:': lambda x: (len(x), (x == 'Win').sum()),
+                'Game Number:': 'count'
+            }).reset_index()
+            
+            strength_stats['Games'] = strength_stats['Game Number:']
+            strength_stats['Win Rate'] = strength_stats['My result:'].apply(
+                lambda x: f"{(x[1]/x[0]*100):.0f}%" if x[0] > 0 else "0%"
+            )
+            strength_stats = strength_stats[["Opponent's Strength:", 'Games', 'Win Rate']]
+            all_bins = ['Much Weaker', 'Weaker', 'Similar', 'Stronger', 'Much Stronger']
+            strength_stats = strength_stats.set_index("Opponent's Strength:").reindex(all_bins, fill_value='-').reset_index()
 
-    # st.write(f"Longest Win streak: {max(win_streaks) if win_streaks else 0}")
-    # st.write(f"Longest Loss streak: {max(loss_streaks) if loss_streaks else 0}")
-    # st.write(f"Longest Draw streak: {max(draw_streaks) if draw_streaks else 0}")
+            # Rename index column back to "Opponent's Strength:"
+            strength_stats = strength_stats.rename(columns={"index": "Opponent's Strength:"})
+            
+            st.dataframe(
+                strength_stats,
+                use_container_width=True,
+                hide_index=True,
+                height=210
+            )
+        
+        with colb:
+            color = df.groupby('My color:')['My result:'].apply(lambda x: (x == 'Win').mean())
+            st.write(f'Win Rate with different colors: ')
+            st.dataframe(round(color*100,2), width="content", row_height=50, height=135, use_container_width=False,
+                         column_config={
+                "My color:": st.column_config.TextColumn("Color:", width=150),
+                "My result:": st.column_config.NumberColumn("Win Rate:", width=100)
+            })
+            
+            c1,c2,c3,c4 = st.columns([1,1,1,1])
+            with c1:
+                st.image('https://images.chesscomfiles.com/uploads/v1/images_users/tiny_mce/PedroPinhata/phpQcwe5E.png', width=50)
+            with c2:
+                st.image('https://images.chesscomfiles.com/uploads/v1/images_users/tiny_mce/PedroPinhata/phpmDwOPG.png', width=50)
+            with c3: 
+                st.image('https://images.chesscomfiles.com/uploads/v1/images_users/tiny_mce/PedroPinhata/phpE0gpKi.png', width=50)
+
+
+
+
+        with colc:
+            st.image('https://images.chesscomfiles.com/uploads/v1/images_users/tiny_mce/PedroPinhata/phpkXK09k.png',width=180)
+
+##+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++##
+
+        st.markdown("### Opening Performance")
+
+        opening_stats = df.groupby('Opening:').agg({
+            'My result:': lambda x: (len(x), (x == 'Win').sum()),
+            'Game Number:': 'count'
+        }).reset_index()
+
+        opening_stats['Games'] = opening_stats['Game Number:']
+        opening_stats['Wins'] = opening_stats['My result:'].apply(lambda x: x[1])
+        opening_stats['Win Rate'] = opening_stats['My result:'].apply(
+            lambda x: f"{(x[1]/x[0]*100):.0f}%" if x[0] > 0 else "0%"
+        )
+        opening_stats = opening_stats[['Opening:', 'Games', 'Win Rate']]
+        opening_stats = opening_stats.sort_values('Games', ascending=False).head(7)
+
+        st.dataframe(
+            opening_stats,
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                "Opening:": st.column_config.TextColumn("Opening", width="medium"),
+                "Games": st.column_config.NumberColumn("Games", width="small"),
+                "Win Rate": st.column_config.TextColumn("Win Rate", width="small")
+            }
+        )
+
+

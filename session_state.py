@@ -15,6 +15,8 @@ def init_session_state():
         'username': None,
         'go_to_data': False,
         'selected_df': None,
+        'year': None,
+        'month': None
     }
     for key, value in defaults.items():
         if key not in st.session_state:

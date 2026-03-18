@@ -2,6 +2,7 @@ import streamlit as st
 from utils import extract_games, extract_pgn_data 
 from session_state import init_session_state
 
+st.set_page_config(layout="wide")
 
 init_session_state()
 
@@ -11,38 +12,6 @@ if st.session_state.all_games_list is None:
     if st.button("Go to Home"):
         st.switch_page("app.py")
     st.stop()
-
-# Button to extract game data of different formats into dataframe
-if st.button("Extract All games.", shortcut='Enter', type='primary'):
-
-    all_games = extract_games(st.session_state.all_games_list, st.session_state.username)
-    st.session_state.all_games = all_games
-    st.write(f'Total {len(all_games)} games extracted')
-
-    rapid_games = extract_games(st.session_state.rapid_games_list, st.session_state.username)
-    st.session_state.rapid_games = rapid_games
-    st.write(f'{len(rapid_games)} rapid games')
-
-    blitz_games = extract_games(st.session_state.blitz_games_list, st.session_state.username)
-    st.session_state.blitz_games = blitz_games
-    st.write(f'{len(blitz_games)} blitz games')
-
-    daily_games = extract_games(st.session_state.daily_games_list, st.session_state.username)
-    st.session_state.daily_games = daily_games
-    st.write(f'{len(daily_games)} daily games')
-
-    bullet_games = extract_games(st.session_state.bullet_games_list, st.session_state.username)
-    st.session_state.bullet_games = bullet_games
-    st.write(f'{len(bullet_games)} bullet games')
-
-if st.session_state.all_games is not None:
-    if st.button("Go to Analysis →"):
-        st.switch_page("pages/2_analysis.py")
-
-
-# Session state to track which df to show
-if 'selected_df' not in st.session_state:
-    st.session_state.selected_df = None
 
 # Buttons side by side
 col1, col2, col3, col4, col5 = st.columns(5)
